@@ -9,7 +9,7 @@ trait Graph<Node, Edge> {
     fn children(&self, Node, &fn(&(Edge, Node)) -> bool);   // iterate on outgoing edges
 }
 
-impl<E> Graph<int,E> for ~LinearMap<int, ~[(E,int)]> {
+impl<E> Graph<int,E> for LinearMap<int, ~[(E,int)]> {
     fn children(&self, n:int, f : &fn(&(E,int)) -> bool) {
         match self.find(&n) {
             None => (),
@@ -20,6 +20,7 @@ impl<E> Graph<int,E> for ~LinearMap<int, ~[(E,int)]> {
 
 #[test]
 fn test_1() {
-    let g : ~LinearMap<int, int> = ~linear_map_with_capacity(15);
-    // let g2 : Graph<int,int> = ~*g;
+    let g : ~LinearMap<int, ~[(int,int)]> = ~linear_map_with_capacity(15);
+    let g2 : ~Graph<int,int> = g as ~Graph<int,int>;
+    g2.children(5, |&(e,x)| { io::println(fmt!("got edge from 5: %d -> %d", e, x)); true });
 }
