@@ -11,12 +11,20 @@ trait Graph<Node, Edge> {
     fn add_node(&mut self, Node);
     fn node_count(&self) -> uint;
     fn add_edge(&mut self, Node, Node, Edge);
-//    fn each_node(&self, &fn(&Node) -> bool);
+    //    fn each_node(&self, &fn(&Node) -> bool);
     fn each_edge(&self, &fn(&Node, &Node, &Edge) -> bool);
 
-    fn edge_count(&self) -> uint;
+    //fn edge_count(&self) -> uint;
 }
 
+fn edge_count<N,E, G:Graph<N,E>>(g: &G) -> int {
+    let mut count = 0;
+    g.each_edge(|_,_,_| {
+            count += 1;
+            true
+        });
+    count
+}
 
 impl<N:Hash+Eq,E> Graph<N,E> for HashMap<N, ~[(N,E)]> {
     fn children(&self, n:&N, f : &fn(&(N,E)) -> bool) {
@@ -50,15 +58,6 @@ impl<N:Hash+Eq,E> Graph<N,E> for HashMap<N, ~[(N,E)]> {
             true
         })
     }
-
-    fn edge_count(&self) -> uint {
-        let mut count = 0;
-        self.each_edge(|_,_,_| {
-            count += 1;
-            true
-        });
-        count
-    }
 }
 
 #[test]
@@ -90,7 +89,7 @@ fn add_node_string() {
 #[test]
 fn add_edge() {
     let mut g : HashMap<int, ~[(int,int)]> = linear_map_with_capacity(15);
-    if g.edge_count() != 0 {
+    if edge_count(&g) != 0 {
         fail!("The graph is not empty");
     }
 
@@ -98,7 +97,7 @@ fn add_edge() {
     g.add_node(1);
     g.add_edge(0,1,1);
 
-    if g.edge_count() != 1 {
+    if edge_count(&g) != 1 {
         fail!("Not one edge");
     }
 }
@@ -106,7 +105,7 @@ fn add_edge() {
 #[test]
 fn add_edge_string() {
     let mut g : HashMap<~str, ~[(~str,int)]> = linear_map_with_capacity(15);
-    if g.edge_count() != 0 {
+    if edge_count(&g) != 0 {
         fail!("The graph is not empty");
     }
 
@@ -114,7 +113,7 @@ fn add_edge_string() {
     g.add_node(~"b");
     g.add_edge(~"a",~"b",1);
 
-    if g.edge_count() != 1 {
+    if edge_count(&g) != 1 {
         fail!("Not one edge");
     }
 }
