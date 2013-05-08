@@ -2,7 +2,6 @@ extern mod core;
 
 use core::hash::Hash;
 use core::hashmap::HashMap;
-use core::hashmap::linear_map_with_capacity;
 
 // #[crate_type = "lib"];
 
@@ -11,19 +10,20 @@ trait Graph<Node, Edge> {
     fn add_node(&mut self, Node);
     fn node_count(&self) -> uint;
     fn add_edge(&mut self, Node, Node, Edge);
-    //    fn each_node(&self, &fn(&Node) -> bool);
-    fn each_edge(&self, &fn(&Node, &Node, &Edge) -> bool);
-
-    //fn edge_count(&self) -> uint;
+    fn each_node(&self, &fn(&Node) -> bool);
 }
 
 fn edge_count<N,E, G:Graph<N,E>>(g: &G) -> int {
     let mut count = 0;
-    g.each_edge(|_,_,_| {
-            count += 1;
-            true
-        });
+    each_edge(g, |_,_,_| { count += 1; true });
     count
+}
+
+fn each_edge<N,E, G:Graph<N,E>>(g: &G, f: &fn(&N,&N,&E) -> bool){
+    g.each_node(|source| {
+        g.children(source, |&(target, edge)| { f(source, &target, &edge) });
+        true
+    })
 }
 
 impl<N:Hash+Eq,E> Graph<N,E> for HashMap<N, ~[(N,E)]> {
@@ -49,20 +49,15 @@ impl<N:Hash+Eq,E> Graph<N,E> for HashMap<N, ~[(N,E)]> {
         }
     }
 
-    fn each_edge(&self, f: &fn(&N,&N,&E) -> bool){
-        self.each_key(|&source| {
-            self.children(&source, |&(target, edge)| {
-                f(&source, &target, &edge);
-                true
-            });
-            true
-        })
+    fn each_node(&self, f: &fn(&N) -> bool) {
+        self.each_key(|source| {f(source)});
     }
 }
 
+
 #[test]
 fn add_node() {
-    let mut g : HashMap<int, ~[(int,int)]> = linear_map_with_capacity(15);
+    let mut g : HashMap<int, ~[(int,int)]> = HashMap::new();
     if g.node_count() != 0 {
         fail!("The graph is not empty");
     }
@@ -75,7 +70,7 @@ fn add_node() {
 
 #[test]
 fn add_node_string() {
-    let mut g : HashMap<~str, ~[(~str,int)]> = linear_map_with_capacity(15);
+    let mut g : HashMap<~str, ~[(~str,int)]> = HashMap::new();
     if g.node_count() != 0 {
         fail!("The graph is not empty");
     }
@@ -88,7 +83,7 @@ fn add_node_string() {
 
 #[test]
 fn add_edge() {
-    let mut g : HashMap<int, ~[(int,int)]> = linear_map_with_capacity(15);
+    let mut g = HashMap::new();
     if edge_count(&g) != 0 {
         fail!("The graph is not empty");
     }
@@ -104,7 +99,7 @@ fn add_edge() {
 
 #[test]
 fn add_edge_string() {
-    let mut g : HashMap<~str, ~[(~str,int)]> = linear_map_with_capacity(15);
+    let mut g = HashMap::new();
     if edge_count(&g) != 0 {
         fail!("The graph is not empty");
     }
