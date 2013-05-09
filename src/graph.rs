@@ -1,7 +1,7 @@
 extern mod core;
 
 use core::hash::Hash;
-use core::hashmap::HashMap;
+use core::hashmap::{HashMap, HashSet};
 
 // #[crate_type = "lib"];
 
@@ -11,18 +11,6 @@ trait Graph<Node, Edge> {
     fn node_count(&self) -> uint;
     fn add_edge(&mut self, Node, Node, Edge);
     fn each_node(&self, &fn(&Node) -> bool);
-}
-
-fn dfs_rec<N:Hash+Eq+Copy,E, G:Graph<N,E>>(g: &G, source: &N, visitor: &fn(&N) -> bool, visited: &mut HashMap<N, bool>) {
-    if visitor(source){
-        g.children(source, |&(target,_)| {
-            if !*visited.get(&target) {
-                visited.insert(target, true);
-                dfs_rec(g, &target, visitor, visited);
-            };
-            true
-            });
-    }
 }
 
 fn edge_count<N,E, G:Graph<N,E>>(g: &G) -> int {
@@ -39,13 +27,22 @@ fn each_edge<N,E, G:Graph<N,E>>(g: &G, f: &fn(&N,&N,&E) -> bool){
 }
 
 fn dfs<N:Hash+Eq+Copy,E, G:Graph<N,E>>(g: &G, source: &N, visitor: &fn(&N) -> bool) {
-    let mut visited = ~HashMap::new();
-    g.each_node(|&n| {visited.insert(n, false); true});
-    visited.insert(*source, true);
+    let mut visited = ~HashSet::new();
+    visited.insert(*source);
     dfs_rec(g, source, visitor, visited);
 }
 
-
+fn dfs_rec<N:Hash+Eq+Copy,E, G:Graph<N,E>>(g: &G, source: &N, visitor: &fn(&N) -> bool, visited: &mut HashSet<N>) {
+    if visitor(source){
+        g.children(source, |&(target,_)| {
+            if !visited.contains(&target) {
+                visited.insert(target);
+                dfs_rec(g, &target, visitor, visited);
+            };
+            true
+            });
+    }
+}
 
 impl<N:Hash+Eq,E> Graph<N,E> for HashMap<N, ~[(N,E)]> {
     fn children(&self, n:&N, f : &fn(&(N,E)) -> bool) {
