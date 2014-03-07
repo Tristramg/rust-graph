@@ -1,54 +1,61 @@
-extern mod core;
+extern crate collections;
 
-use core::hash::Hash;
-use core::hashmap::{HashMap, HashSet};
-
-// #[crate_type = "lib"];
+use std::hash::Hash;
+use collections::{HashMap, HashSet};
 
 trait Graph<Node, Edge> {
-    fn children(&self, &Node, &fn(&(Node, Edge)) -> bool);   // iterate on outgoing edges
+    // Mutation methods
     fn add_node(&mut self, Node);
-    fn node_count(&self) -> uint;
     fn add_edge(&mut self, Node, Node, Edge);
-    fn each_node(&self, &fn(&Node) -> bool);
+    
+    // Simple accessors
+    fn node_count(&self) -> uint;
+
+    // Structure iterators
+    fn each_node(&self, |&Node|);
+    fn children<'a>(&'a self, &Node, |&'a Node, &'a Edge|); // iterate on outgoing edges
+
+    fn each_edge(&self, f: |&Node, &Node ,&Edge|){
+        self.each_node(|source| {
+            self.children(source, |target, edge| { f(source, target, edge) });
+        })
+    }
+
+    fn edge_count(&self) -> uint {
+        let mut count = 0;
+        self.each_edge(|_,_,_| { count += 1; });
+        count
+    }
+
 }
 
-fn edge_count<N,E, G:Graph<N,E>>(g: &G) -> int {
-    let mut count = 0;
-    each_edge(g, |_,_,_| { count += 1; true });
-    count
+trait GraphAlgorithm<Node, Edge> {
+    fn dfs_rec<'b>(&'b self, source: &'b Node, visitor: |&Node|, visited: &mut HashSet<&'b Node>);
 }
 
-fn each_edge<N,E, G:Graph<N,E>>(g: &G, f: &fn(&N,&N,&E) -> bool){
-    g.each_node(|source| {
-        g.children(source, |&(target, edge)| { f(source, &target, &edge) });
-        true
-    })
-}
-
-fn dfs<N:Hash+Eq+Copy,E, G:Graph<N,E>>(g: &G, source: &N, visitor: &fn(&N) -> bool) {
-    let mut visited = ~HashSet::new();
-    visited.insert(*source);
-    dfs_rec(g, source, visitor, visited);
-}
-
-fn dfs_rec<N:Hash+Eq+Copy,E, G:Graph<N,E>>(g: &G, source: &N, visitor: &fn(&N) -> bool, visited: &mut HashSet<N>) {
-    if visitor(source){
-        g.children(source, |&(target,_)| {
-            if !visited.contains(&target) {
-                visited.insert(target);
-                dfs_rec(g, &target, visitor, visited);
+impl<'a, Node:Hash+Eq, Edge> GraphAlgorithm<Node, Edge> for &'a Graph<Node, Edge> {
+    fn dfs_rec<'b>(&'b self, source: &'b Node, visitor: |&Node|, visited: &mut HashSet<&'b Node>) {
+        visitor(source);
+        self.children(source, |target,_| {
+            if !visited.contains(&source) {
+            visited.insert(target);
+            //        self.dfs_rec(target, visitor, visited);
             };
-            true
-            });
+        });
     }
 }
 
-impl<N:Hash+Eq,E> Graph<N,E> for HashMap<N, ~[(N,E)]> {
-    fn children(&self, n:&N, f : &fn(&(N,E)) -> bool) {
-        match self.find(n) {
+
+
+
+
+impl<N:Hash+Eq+Clone,E> Graph<N,E> for HashMap<N, ~[(N,E)]> {
+    fn children<'a>(&'a self, out_node: &N, f : |&'a N, &'a E|) {
+        match self.find(out_node) {
             None => (),
-            Some(list) => list.each(f)
+            Some(ref list) => for &(ref n, ref e) in list.iter() {
+                f(n,e);
+            }
         };
     }
 
@@ -63,12 +70,12 @@ impl<N:Hash+Eq,E> Graph<N,E> for HashMap<N, ~[(N,E)]> {
     fn add_edge(&mut self, source:N, target:N, e:E) {
         match self.find_mut(&source) {
             None => fail!("Source node does not exist"),
-                 Some(list) => list.push((target, e))
+            Some(list) => list.push((target, e))
         }
     }
 
-    fn each_node(&self, f: &fn(&N) -> bool) {
-        self.each_key(|source| {f(source)});
+    fn each_node(&self, f: |&N|) {
+        for source in self.keys() {f(source)}
     }
 }
 
@@ -102,7 +109,7 @@ fn add_node_string() {
 #[test]
 fn add_edge() {
     let mut g = HashMap::new();
-    if edge_count(&g) != 0 {
+    if g.edge_count() != 0 {
         fail!("The graph is not empty");
     }
 
@@ -110,7 +117,7 @@ fn add_edge() {
     g.add_node(1);
     g.add_edge(0,1,1);
 
-    if edge_count(&g) != 1 {
+    if g.edge_count() != 1 {
         fail!("Not one edge");
     }
 }
@@ -118,7 +125,8 @@ fn add_edge() {
 #[test]
 fn add_edge_string() {
     let mut g = HashMap::new();
-    if edge_count(&g) != 0 {
+    println!("Count: {:?}", g.edge_count());
+    if g.edge_count() != 0 {
         fail!("The graph is not empty");
     }
 
@@ -126,11 +134,12 @@ fn add_edge_string() {
     g.add_node(~"b");
     g.add_edge(~"a",~"b",1);
 
-    if edge_count(&g) != 1 {
+    if g.edge_count() != 1 {
         fail!("Not one edge");
     }
 }
 
+/*
 #[test]
 fn dfs_test() {
     let mut g = HashMap::new();
@@ -142,7 +151,7 @@ fn dfs_test() {
     g.add_edge(2,0,1);
 
     let mut nodes = ~[];
-    dfs(&g, &0, |&n| {nodes.push(n); true });
+    dfs(&g, 0, |n| {nodes.push(n); true });
 
     if nodes.len() != 3 {
         fail!("Wrong number of elements visited");
@@ -150,4 +159,6 @@ fn dfs_test() {
     if nodes[0] != 0 || nodes[1] != 1 || nodes[2] != 2 {
         fail!("Wrong elements");
     }
-}
+}*/
+
+
